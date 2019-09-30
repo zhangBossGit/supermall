@@ -1,0 +1,32 @@
+<template>
+    <div class="nav-bar">
+      <!--左槽-->
+      <div class="left"><slot name="left"></slot></div>
+      <!--中间-->
+      <div class="center"><slot name="center">2</slot></div>
+      <!--右槽-->
+      <div class="right"><slot name="right"></slot></div>
+    </div>
+</template>
+
+<script>
+    export default {
+      name: "",
+
+    }
+</script>
+
+<style scoped>
+  .nav-bar{
+    line-height: 44px;
+    display: flex;
+    box-shadow: 0 1px 1px rgba(100,100,100,0.1);
+  }
+  .left, .right{
+    width: 60px;
+  }
+  .center{
+    flex: 1;
+    text-align: center;
+  }
+</style>
