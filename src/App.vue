@@ -1,6 +1,9 @@
 <template>
   <div id="app">
-    <router-view></router-view>
+    <!--进行一次 keep-alive 包装,里面的组件就不会销毁-->
+    <keep-alive>
+      <router-view></router-view>
+    </keep-alive>
 
     <main-tab-bar></main-tab-bar>
 

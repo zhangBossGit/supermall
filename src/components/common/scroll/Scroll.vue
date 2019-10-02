@@ -45,13 +45,15 @@
 
         //3.添加下拉加载更多事件
         this.scroll.on('pullingUp', () => {
-          // console.log('加载更多1231231')
           this.$emit('pullingUp')
         })
       },
       methods:{
         finishPullUp(){ //能多次下拉加载更多数据
-          this.scroll.finishPullUp();
+          this.scroll && this.scroll.finishPullUp();
+        },
+        refresh(){
+          this.scroll && this.scroll.refresh();
         }
       }
     }

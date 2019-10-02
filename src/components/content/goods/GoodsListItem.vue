@@ -1,7 +1,7 @@
 <template>
     <div class="goods-item">
       <!-- 展示数据,然后会在父组件(GoodsList)全部遍历展示 -->
-      <img :src="goodsItem.show.img" alt="">
+      <img :src="goodsItem.show.img" alt="" @load="imageLoad">
 
       <div class="goods-info">
         <p>{{ goodsItem.title }}</p>
@@ -21,6 +21,13 @@
           default(){
             return {}
           }
+        }
+      },
+      methods: {
+        //每次图片加载完成后执行的方法
+        imageLoad(){
+          //向事件总线发射一个方法(事件)
+          this.$bus.$emit('itemImageLoad')
         }
       }
     }

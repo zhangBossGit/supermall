@@ -4,13 +4,18 @@
       <!--引用对应的插槽-->
       <div slot="center">购物街</div>
     </nav-bar>
+    <!--复制的商品导航栏 用于向上拉取时相互交替-->
+    <tab-control @tabClick="tabclick" ref="tabControl1"
+                 :titles="['流行', '新款', '精选']"
+                 class="tab-control" v-show="isTabFixed">
+    </tab-control>
 
     <!-- BScroll插件滚动区域
             设置ref属性值(方便调用) 向子组件(scroll.vue)传递滚动值 3  让子组件调用的方法,并接收传递过来的参数  -->
     <scroll class="content" ref="scroll" :probe-type="3" :pull-up-load="true"
             @scroll="contentScroll" @pullingUp="loadMore">
         <!--轮播图 HomeSwiper.vue -->
-        <home-swiper :banners="banners"></home-swiper>
+        <home-swiper :banners="banners" @swiperImageLoad="swiperImageLoad"></home-swiper>
 
         <!--推荐信息 HomeRecommend.vue -->
         <home-recommend :recommends="recommends"></home-recommend>
@@ -19,8 +24,9 @@
         <home-feature></home-feature>
 
         <!--商品导航栏 tabControl.vue 接收子组件(tabControl)传递过来的事件tabClick -->
-        <tab-control class="tab-control" @tabClick="tabclick"
-                     :titles="['流行', '新款', '精选']"></tab-control>
+        <tab-control @tabClick="tabclick" ref="tabControl2"
+                     :titles="['流行', '新款', '精选']">
+        </tab-control>
 
         <!-- 商品信息组件 GoodsList.vue -->
         <!-- 将要展示的商品数据列表(数组30条对象数据)传递给子组件 -->
@@ -80,8 +86,11 @@
           'new':{page:0, list: []},
           'sell':{page:0, list: []},
         },
-        goodsType: 'pop',
-        isShowBackTop: false
+        goodsType: 'pop',    //商品数据类型
+        isShowBackTop: false,//是否显示向上跳转图标
+        tabOffsetTop: 0,    //记录流行导航到顶部的高度
+        isTabFixed: false,  //记录是否吸顶
+        saveY: 0            //记录离开home组件时的y值
       }
     },
     created(){
@@ -93,6 +102,27 @@
       this.getHomeGoods('pop');
       this.getHomeGoods('new');
       this.getHomeGoods('sell');
+    },
+    //在created()中监听获取scroll对象可能为null
+    mounted(){
+      //执行this.$refs.scroll.refresh()之前用防抖函数进行包装一下
+      const  refresh = this.debounce(this.$refs.scroll.refresh);
+
+      // 3.监听goodsListItem.vue中图片加载完成[发送过来的方法(事件)]
+      this.$bus.$on('itemImageLoad', () => {
+        // this.$refs.scroll.refresh();
+        refresh();
+      });
+    },
+    activated(){ //组件活跃时
+      //瞬间将组件y轴距离定位到上次活跃的位置
+      this.$refs.scroll.scroll.scrollTo(0, this.saveY, 0);
+
+      this.$refs.scroll.refresh() //滚完之后最好刷新一下
+    },
+    deactivated(){//组件不活跃时
+      //组件不活跃时,获取页面滚动的y轴距离,并保存到data中
+      this.saveY = this.$refs.scroll.scroll.y;
     },
     methods:{
       /*
@@ -128,6 +158,17 @@
       /*
       *  事件监听相关
       * */
+      debounce(func, delay=200){//防抖函数  针对监听图片加载频繁
+        let timer = null;
+
+        return function (...args) {
+          if(timer)
+            clearTimeout(timer);
+          timer = setTimeout(() => {
+            func.apply(this, args)
+          }, delay)
+        }
+      },
       tabclick(index){
         // console.log(index);
         switch (index) {
@@ -141,6 +182,9 @@
             this.goodsType = 'sell';
             break
         }
+        //将两个TabControl商品导航栏的点击类型设为一致
+        this.$refs.tabControl1.currentIndex = index;
+        this.$refs.tabControl2.currentIndex = index;
       },
       backClick(){ //向上跳转图片的点击
         console.log('监听成功');
@@ -149,16 +193,28 @@
         this.$refs.scroll.scroll.scrollTo(0, 0, 500)
       },
       contentScroll(position){ //向上跳转图片的隐藏和显示
+        // 1.判断BackTop是否显示
         // console.log(position.y);
         this.isShowBackTop = position.y <= -1000? true:false
+
+        // 2.决定tabControl是否吸顶(position: fixed)
+        this.isTabFixed = (-position.y) > this.tabOffsetTop? true:false
       },
       loadMore(){ //加载更多
         console.log('上来加载更多');
         //调用获取商品数据方法 传入data中选中的商品类型(goodsType)
-        this.getHomeGoods(this.goodsType)
+        this.getHomeGoods(this.goodsType);
 
         //加载更多 加载完后,要对scroll计算的滚动高度进行刷新,就不会出现向上拉不动的bug
         this.$refs.scroll.scroll.refresh();
+      },
+      swiperImageLoad(){
+        // 4.获取tabControl(流行、精选...)导航的offsetTop  不能通过组件直接拿offsetTop
+        //所有的组件都有一个属性$el：用于获取组件中的元素
+        // console.log(this.$refs.tabControl.$el);
+
+        //将流行导航的offsetTop值保存到data数据中
+        this.tabOffsetTop = this.$refs.tabControl2.$el.offsetTop
       }
     }
   }
@@ -170,15 +226,16 @@
     font-weight: bold;
     color: whitesmoke;
 
-    position: fixed; /*导航条固定*/
-    top: 0;
-    left: 0;
-    right: 0;
+    /*position: fixed; !*导航条固定*!*/
+    /*top: 0;*/
+    /*left: 0;*/       /*因为中间内容区域本来是固定高度滚动,所以没必要加固定定位*/
+    /*right: 0;*/
     z-index: 2;
+    position: relative;
   }
 
   #home{
-    padding: 44px 0 49px 0; /* 顶部通栏44 底部导航条49 */
+    padding: 0 0 49px 0; /* 顶部通栏44 底部导航条49 */
 
     height: 100vh;  /* 当前视口高度 */
     position: relative;
@@ -189,6 +246,9 @@
     /*top: 44px;        !* 在达到top值的时候position值会变成flex *!*/
 
     /*z-index: 5;*/
+
+    position: relative;
+    z-index: 9;
   }
 
 
